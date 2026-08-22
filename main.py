@@ -1,44 +1,27 @@
-from FluoriteGraph import Edge, EdgeType, FluoriteGraph, Folder, Node, NodeType
+from FluoriteGraph import FluoriteGraph, NodeType, EdgeType, Folder
 
 def main():
-    files = NodeType(
-        "файли", 
-        [
-            Node("hello.py"),
-            Node("myclass.py"),
-            Node("exec.py"),
-        ]
-    )
-    
-    classes = NodeType("класси", [Node("MyClass"),])
-    
-    methods = NodeType(
-        "методи", 
-        [
-            Node("method1"),
-            Node("method2"),
-        ]
-    )
+    filenames = ["hello.py", "myclass.py", "exec.py"]
+    files = NodeType("файли")
+    files.extend(filenames)
+
+    classes = NodeType("класси")
+    classes.append("MyClass")
+
+    method_names = ["method1", "method2"]    
+    methods = NodeType("методи")
+    methods.extend(method_names)
 
     imports = EdgeType("імпортує", directed=True)
     uses = EdgeType("використовує", directed=True)
 
-    imports.edges.append(Edge(files["hello.py"], files["myclass.py"]))
-    uses.edges.append(Edge(files["hello.py"], methods["method1"]))
+    imports.append(files["hello.py"], files["myclass.py"])
+    uses.append(files["hello.py"], methods["method1"])
 
     graph = FluoriteGraph(
-        nodes=[
-            files, 
-            classes, 
-            methods,
-        ], 
-        edges=[
-            imports, 
-            uses,
-        ], 
-        folders=[
-            Folder("src", [files["myclass.py"],])
-        ]
+        nodes=[files, classes, methods], 
+        edges=[imports, uses], 
+        folders=[Folder("src", [files["myclass.py"]])]
     )
     print(graph)
 
@@ -51,80 +34,52 @@ if __name__ == "__main__":
 #     nodes=[
 #         NodeType(
 #             name='файли', 
-#             nodes=[
-#                 Node(
-#                     name='hello.py', 
-#                     id=1, 
-#                     description=None
-#                 ), 
-#                 Node(
-#                     name='myclass.py', 
-#                     id=2, 
-#                     description=None
-#                 ), 
-#                 Node(
-#                     name='exec.py', 
-#                     id=3, 
-#                     description=None
-#                 )
-#             ]
+#             nodes={
+#                 1: Node(name='hello.py'), 
+#                 2: Node(name='myclass.py'), 
+#                 3: Node(name='exec.py')
+#             }
 #         ), 
 #         NodeType(
 #             name='класси', 
-#             nodes=[
-#                 Node(
-#                     name='MyClass', 
-#                     id=4, 
-#                     description=None
-#                 )
-#             ]
+#             nodes={
+#                 4: Node(name='MyClass')
+#             }
 #         ), 
 #         NodeType(
 #             name='методи', 
-#             nodes=[
-#                 Node(
-#                     name='method1', 
-#                     id=5, 
-#                     description=None
-#                 ), 
-#                 Node(
-#                     name='method2', 
-#                     id=6, 
-#                     description=None
-#                 )
-#             ]
+#             nodes={
+#                 5: Node(name='method1'), 
+#                 6: Node(name='method2')
+#             }
 #         )
 #     ], 
 #     edges=[
 #         EdgeType(
 #             name='імпортує', 
 #             directed=True, 
-#             edges=[
-#                 Edge(
-#                     node_in=Node(name='hello.py', id=1, description=None), 
-#                     node_out=Node(name='myclass.py', id=2, description=None), 
-#                     description=None
+#             edges={
+#                 7: Edge(
+#                     node_in=Node(name='hello.py'), 
+#                     node_out=Node(name='myclass.py'), 
 #                 )
-#             ]
+#             }
 #         ), 
 #         EdgeType(
 #             name='використовує', 
 #             directed=True, 
-#             edges=[
-#                 Edge(
-#                     node_in=Node(name='hello.py', id=1, description=None), 
-#                     node_out=Node(name='method1', id=5, description=None), 
-#                     description=None
+#             edges={
+#                 8: Edge(
+#                     node_in=Node(name='hello.py'), 
+#                     node_out=Node(name='method1'),
 #                 )
-#             ]
+#             }
 #         )
 #     ], 
 #     folders=[
 #         Folder(
 #             name='src', 
-#             nodes=[
-#                 Node(name='myclass.py', id=2, description=None)
-#             ]
+#             nodes=[Node(name='myclass.py')]
 #         )
 #     ]
 # )

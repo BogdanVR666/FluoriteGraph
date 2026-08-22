@@ -1,45 +1,89 @@
 from dataclasses import dataclass, field
+from collections.abc import Iterable
 from itertools import count
 
 _counter = count(1)
 
-@dataclass(frozen=True, slots=True)
-class Node:
-    name: str
-    id: int = field(default_factory=lambda: next(_counter))
-    description: str | None = None
-
 
 @dataclass(slots=True)
 class NodeType:
+    @dataclass(frozen=True, slots=True)
+    class Node:
+        name: str
+        description: str | None
+        node_id: int = field(default_factory=lambda: next(_counter))
+
+        def __repr__(self):
+            name = self.name
+            description = f", {self.description}," if self.description else ""
+            return f"Node({name=}{description})"
+
     name: str
-    nodes: list[Node] = field(default_factory=list)
+    nodes: dict[int, Node] = field(default_factory=dict)
 
-    def __getitem__(self, name: str) -> Node:
-        for node in self.nodes:
+    def append(self, name, description=None):
+        node = self.Node(name, description)
+        self.nodes[node.node_id] = node
+
+    def extend(self, nodes: Iterable[Iterable[str]]):
+        for node in nodes:
+            if isinstance(node, str):
+                self.append(node)
+            elif isinstance(node, Iterable) and len(node) == 2:
+                self.append(node[0], node[1])
+            else:
+                raise ValueError("data must be 'str' or 'pair[str, str]'")
+
+    def __getitem__(self, name):
+        result = list()
+        for node in self.nodes.values():
             if node.name == name:
-                return node
-        raise KeyError(f"Node {name!r} not found in {self.name!r}")
-
-
-@dataclass(frozen=True, slots=True)
-class Edge:
-    node_in: Node
-    node_out: Node
-    description: str | int | None = None
+                result.append(node)
+        if len(result) == 1:
+            return result[0]
+        elif len(result):
+            return result
+        else:
+            raise KeyError(f"Node with name {name} not found")
 
 
 @dataclass(slots=True)
 class EdgeType:
+    @dataclass(frozen=True, slots=True)
+    class Edge:
+        node_in: NodeType.Node
+        node_out: NodeType.Node
+        description: str | None = None
+        edge_id: int = field(default_factory=lambda: next(_counter))
+
+        def __repr__(self):
+            node_in = self.node_in
+            node_out = self.node_out
+            description = f", {self.description}," if self.description else ""
+            return f"Edge({node_in=}, {node_out=}{description})"
+
     name: str
     directed: bool = False
-    edges: list[Edge] = field(default_factory=list)
+    edges: dict[int, Edge] = field(default_factory=dict)
+    
+    def append(self, node_in: NodeType.Node, node_out: NodeType.Node) -> None:
+        edge = self.Edge(node_in, node_out)
+        self.edges[edge.edge_id] = edge
+
+    def extend(self, nedges: Iterable[tuple[NodeType.Node, NodeType.Node]]) -> None:
+        for edge in edges:
+            if isinstance(edge, Edge):
+                self.edges[edge.edge_id] = edge
+            elif isinstance(edge, Iterable) and len(edge) == 2:
+                self.append(edge[0], edge[1])
+            else:
+                raise ValueError("data must be 'Iterable[Edge]' or 'pair[Node, Node]'")
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class Folder:
     name: str
-    nodes: list["Node | Folder"]
+    nodes: tuple["NodeType.Node | Folder"]
 
 
 @dataclass(slots=True)

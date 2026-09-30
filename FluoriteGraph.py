@@ -59,7 +59,7 @@ class EdgeType:
         def __repr__(self):
             node_in = self.node_in
             node_out = self.node_out
-            description = f", {self.description}," if self.description else ""
+            description = f", '{self.description}'" if self.description else ""
             return f"Edge({node_in=}, {node_out=}{description})"
 
     name: str
@@ -70,9 +70,9 @@ class EdgeType:
         edge = self.Edge(node_in, node_out)
         self.edges[edge.edge_id] = edge
 
-    def extend(self, nedges: Iterable[tuple[NodeType.Node, NodeType.Node]]) -> None:
+    def extend(self, edges: Iterable[tuple[NodeType.Node, NodeType.Node]]) -> None:
         for edge in edges:
-            if isinstance(edge, Edge):
+            if isinstance(edge, EdgeType.Edge):
                 self.edges[edge.edge_id] = edge
             elif isinstance(edge, Iterable) and len(edge) == 2:
                 self.append(edge[0], edge[1])
@@ -80,15 +80,52 @@ class EdgeType:
                 raise ValueError("data must be 'Iterable[Edge]' or 'pair[Node, Node]'")
 
 
-@dataclass(frozen=True, slots=True)
-class Folder:
-    name: str
-    nodes: tuple["NodeType.Node | Folder"]
+@dataclass(slots=True)
+class HyperedgeType:
+    @dataclass(frozen=True, slots=True)
+    class Hyperedge:
+        name: str
+        description: str | None = None
+        hyperedge_id: int = field(default_factory=lambda: next(_counter))
+
+    hyperedges: dict[int, Hyperedge] = field(default_factory=dict)
+    children: dict[int, set[int]] = field(default_factory=dict)
+
+    def append(self, hyperedge: Hyperedge) -> None:
+        self.hyperedges[hyperedge.hyperedge_id] = hyperedge
+        self.children[hyperedge.hyperedge_id] = set()
+
+    def add(self, hyperedge_id: int, child_id: int) -> None:
+        if child_id == hyperedge_id or self._reaches(child_id, hyperedge_id):
+            raise ValueError(f"Adding {child_id} to {hyperedge_id} creates a cycle")
+        self.children[hyperedge_id].add(child_id)
+
+    def _reaches(self, start: int, target: int) -> bool:
+        # вершини - листки, тому обходимо лише гіперребра
+        stack, seen = [start], set()
+        while stack:
+            current = stack.pop()
+            if current == target:
+                return True
+            if current in seen:
+                continue
+            seen.add(current)
+            stack.extend(self.children.get(current, ()))
+        return False
 
 
 @dataclass(slots=True)
 class FluoriteGraph:
-    nodes: list[NodeType] = field(default_factory=list)
-    edges: list[EdgeType] = field(default_factory=list)
-    folders: list[Folder] = field(default_factory=list)
+    nodes: dict[str, NodeType] = field(default_factory=dict)
+    edges: dict[str, EdgeType] = field(default_factory=dict)
+    hyperedges: HyperedgeType = field(default_factory=HyperedgeType)
 
+    def __post_init__(self):
+        # дозволяє передавати списки: FluoriteGraph(nodes=[files, classes])
+        if not isinstance(self.nodes, dict):
+            self.nodes = {node_type.name: node_type for node_type in self.nodes}
+        if not isinstance(self.edges, dict):
+            self.edges = {edge_type.name: edge_type for edge_type in self.edges}
+
+    def hyperadd(self, hyperedge: HyperedgeType.Hyperedge) -> None:
+        self.hyperedges.append(hyperedge)

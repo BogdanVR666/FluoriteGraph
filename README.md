@@ -16,8 +16,8 @@
   Кожен тип містить свої вузли (`NodeType.Node`).
 - **Тип ребер** (`EdgeType`) — це «вид» зв'язку, наприклад `імпортує` чи `використовує`.
   Тип визначає, чи є зв'язок напрямленим (`directed`), і містить конкретні ребра (`EdgeType.Edge`).
-- **Гіперребра** (`HyperedgeType`) — системний тип: словник `id гіперребра → множина id дітей`.
-  Дітьми можуть бути вершини або інші гіперребра, вкладеність завжди лишається DAG.
+- **Гіперребро** (`Hyperedge`) — самостійний клас, як `NodeType` чи `EdgeType`. Кожне гіперребро —
+  вирізка з графа, тобто множина `id` вершин та інших гіперребер. Вкладеність завжди лишається DAG.
   Це технічна частина моделі, окремо вона не зображується.
 - **Граф** (`FluoriteGraph`) — контейнер, що об'єднує всі типи вузлів, типи ребер і гіперребра.
 
@@ -27,9 +27,8 @@ FluoriteGraph
 │              └── nodes: {id: Node}
 ├── edges:   {name: EdgeType}     ← категорії зв'язків
 │              └── edges: {id: Edge(node_in → node_out)}
-└── hyperedges: HyperedgeType     ← системний тип груп
-               ├── hyperedges: {id: Hyperedge}
-               └── children:   {id: {id дітей}}
+└── hyperedges: {id: Hyperedge}   ← групи
+                   └── children: {id вершин і гіперребер}
 ```
 
 Завдяки цьому одна й та сама пара вузлів може бути з'єднана кількома різними за змістом зв'язками,
@@ -41,7 +40,7 @@ FluoriteGraph
 
 | Файл               | Призначення                                                        |
 |--------------------|--------------------------------------------------------------------|
-| `FluoriteGraph.py` | Уся модель даних: `NodeType`, `EdgeType`, `HyperedgeType`, `FluoriteGraph` |
+| `FluoriteGraph.py` | Уся модель даних: `NodeType`, `EdgeType`, `Hyperedge`, `FluoriteGraph` |
 | `main.py`          | Демонстраційний приклад використання                               |
 | `pyproject.toml`   | Метадані проєкту та залежності                                     |
 | `uv.lock`          | Зафіксовані версії залежностей (для [uv](https://docs.astral.sh/uv/)) |
@@ -74,10 +73,13 @@ uv run python main.py
 ### `NodeType`
 
 ```python
-NodeType(name: str, nodes: dict[int, Node] = {})
+NodeType(_name: str, nodes: dict[int, Node] = {})
 ```
 
-Категорія вузлів.
+Категорія вузлів. Назва доступна лише для читання через властивість `name`: вона є ключем
+у `graph.nodes`, тож змінити її непомітно, розсинхронізувавши з ключем, не вийде. Щоб перейменувати
+тип, створюють новий з тими самими вузлами (`NodeType("модулі", old.nodes)`) і кладуть його в словник
+замість старого під новим ключем.
 
 | Метод                           | Опис |
 |---------------------------------|------|
@@ -100,15 +102,15 @@ NodeType(name: str, nodes: dict[int, Node] = {})
 ### `EdgeType`
 
 ```python
-EdgeType(name: str, directed: bool = False, edges: dict[int, Edge] = {})
+EdgeType(_name: str, directed: bool = False, edges: dict[int, Edge] = {})
 ```
 
-Категорія зв'язків. Прапорець `directed` визначає, чи має зв'язок напрям (`node_in → node_out`).
+Категорія зв'язків. Назва, як і в `NodeType`, доступна лише для читання (`name`). Прапорець `directed` визначає, чи має зв'язок напрям (`node_in → node_out`).
 
 | Метод                          | Опис |
 |--------------------------------|------|
-| `append(node_in, node_out)`    | Створює ребро між двома вузлами і додає його в тип. |
-| `extend(edges)`                | Додає кілька ребер: готові `Edge` або пари `(node_in, node_out)`. ⚠️ Див. «Відомі проблеми». |
+| `append(node_in, node_out)`    | Створює ребро між двома сутностями (за їхніми `id`) і додає його в тип. |
+| `extend(edges)`                | Додає кілька ребер: готові `Edge` або пари `id` `(node_in, node_out)`. |
 
 #### `EdgeType.Edge`
 
@@ -116,53 +118,63 @@ EdgeType(name: str, directed: bool = False, edges: dict[int, Edge] = {})
 
 | Поле          | Тип             | Опис |
 |---------------|-----------------|------|
-| `node_in`     | `NodeType.Node` | Початковий вузол |
-| `node_out`    | `NodeType.Node` | Кінцевий вузол |
+| `node_in`     | `int`           | `id` початкової сутності |
+| `node_out`    | `int`           | `id` кінцевої сутності |
 | `description` | `str \| None`   | Опис ребра |
 | `edge_id`     | `int`           | Автоматичний ідентифікатор |
 
-### `HyperedgeType`
+Ребро зберігає `id` кінців, а не самі об'єкти. Тому вершину можна замінити (наприклад, перейменувати)
+лише в її `NodeType`, а ребра лишаються коректними. Кінцем ребра може бути будь-яка сутність з `id`,
+зокрема гіперребро. Перевірки, що `id` існує, немає: це відповідальність того, хто додає ребро.
+Щоб отримати вершину за ребром, треба знати її тип (`graph.nodes["файли"].nodes[edge.node_in]`)
+або перебрати типи — це O(T), де T — кількість `NodeType`.
+
+### `Hyperedge`
 
 ```python
-HyperedgeType(
-    hyperedges: dict[int, Hyperedge] = {},   # id → саме гіперребро
-    children:   dict[int, set[int]]  = {},   # id → множина id дітей
-)
+Hyperedge(name: str, description: str | None = None, children: set[int] = set())
 ```
 
-Системний тип для гіперребер. Гіперребро — окрема сутність із власним `id`, а не вершина.
-Діти — це вершини або інші гіперребра, тому гіперребра можна вкладати одне в одне.
-Одна дитина може належати кільком гіперребрам.
+Гіперребро — самостійна сутність із власним `id`, а не вершина. Воно схоже на субграф: це вирізка
+наявних сутностей графа, яка зберігає множину їхніх `id`. Дітьми можуть бути вершини та інші гіперребра,
+тож гіперребра можна вкладати одне в одне. Вкладеність має лишатися DAG. Одна дитина може належати
+кільком гіперребрам.
 
 Гіперребра — це службові позначки: теги, групування для редактора, результати аналізу, робочі набори.
 Якщо про групу хочеться щось сказати (у неї є власні дані, вона бере участь у ребрах, її члени мають
 різні ролі), її варто моделювати вершиною з `NodeType`, а не гіперребром.
 
-#### `HyperedgeType.Hyperedge`
-
-Незмінний dataclass:
-
 | Поле           | Тип          | Опис |
 |----------------|--------------|------|
-| `name`         | `str`        | Назва гіперребра |
+| `name`         | `str`        | Назва гіперребра. Ключем ніде не є, тож її можна змінювати |
 | `description`  | `str \| None` | Опис |
+| `children`     | `set[int]`   | `id` вершин і гіперребер, що входять у гіперребро |
 | `hyperedge_id` | `int`        | Автоматично присвоюється з глобального лічильника |
+| `owner`        | `FluoriteGraph \| None` | Граф, у який додано гіперребро. Виставляє `graph.hyperadd`; не бере участі в порівнянні та `repr` |
 
-| Метод                         | Опис |
-|-------------------------------|------|
-| `append(hyperedge)`           | Реєструє гіперребро з порожньою множиною дітей. У графі це робить `graph.hyperadd(hyperedge)`. |
-| `add(hyperedge_id, child_id)` | Додає дитину в зареєстроване гіперребро. Якщо дитина збігається з гіперребром або з неї можна дійти до гіперребра через вкладені гіперребра, кидає `ValueError`: так вкладеність завжди лишається DAG. |
+Редагування конкретного гіперребра — у самому гіперребрі:
 
-Перевірка на цикли спрацьовує **лише в `add`**. Якщо змінювати `children` напряму
-(`children[h].add(c)`, `children[h] = {...}`), перевірку буде обійдено, і відповідальність за DAG лягає на того, хто так робить.
+| Метод               | Опис |
+|---------------------|------|
+| `append(child_id)`  | Додає дитину. Якщо дитина збігається з гіперребром або з неї можна дійти до цього гіперребра через вкладені гіперребра графа, кидає `ValueError`. |
+| `extend(children)`  | Додає кілька дітей через `append`. |
+
+Поки гіперребро не додано в граф, `owner` порожній і `append` перевіряє лише додавання самого себе.
+Повна перевірка відбувається, коли гіперребро додають у граф (`hyperadd`), а далі — при кожному `append`.
 
 Перевірка обходить у глибину лише гіперребра (вершини завжди листки), тому її вартість
-пропорційна розміру піддерева дитини.
+пропорційна розміру піддерева дитини. Прямі зміни `children` (`children.add(...)`, `children.update(...)`)
+її обходять, і відповідальність за DAG тоді лягає на того, хто так робить. Прибрати дитину
+(`children.discard(id)`) безпечно: видалення циклу не створює.
 
 ```python
-monitoring = HyperedgeType.Hyperedge("під моніторингом")
-graph.hyperadd(monitoring)
-graph.hyperedges.add(monitoring.hyperedge_id, client.node_id)
+monitoring = Hyperedge("під моніторингом")
+anomalies = Hyperedge("аномалії")
+monitoring.append(client.node_id)
+
+graph.hyperextend([monitoring, anomalies])
+anomalies.append(monitoring.hyperedge_id)   # вкладене гіперребро
+monitoring.append(anomalies.hyperedge_id)   # ValueError: цикл
 ```
 
 ### `FluoriteGraph`
@@ -171,17 +183,26 @@ graph.hyperedges.add(monitoring.hyperedge_id, client.node_id)
 FluoriteGraph(
     nodes:   dict[str, NodeType] = {},
     edges:   dict[str, EdgeType] = {},
-    hyperedges: HyperedgeType    = HyperedgeType(),
+    hyperedges: dict[int, Hyperedge] = {},
 )
 ```
 
-Кореневий контейнер. Гіперребра додаються через `hyperadd(hyperedge)`. Усе зберігається у словниках:
+Кореневий контейнер. Редагування множини гіперребер — у графі:
+
+| Метод                     | Опис |
+|---------------------------|------|
+| `hyperadd(hyperedge)`     | Додає гіперребро в граф і виставляє йому `owner`. Якщо діти гіперребра вже утворюють цикл через гіперребра графа, кидає `ValueError`. |
+| `hyperextend(hyperedges)` | Додає кілька гіперребер через `hyperadd`. |
+
+Гіперребра, передані в конструктор (списком або словником), теж проходять через `hyperadd`.
+
+Усе зберігається у словниках:
 
 | Що                              | Ключ   | Доступ |
 |---------------------------------|--------|--------|
 | Типи вузлів / ребер (`graph.nodes`, `graph.edges`) | `name` | `graph.nodes["файли"]` — O(1) |
 | Вузли, ребра (`NodeType.nodes`, `EdgeType.edges`)   | `id`   | `files.nodes[1]` — O(1) |
-| Гіперребра, їхні діти (`graph.hyperedges.hyperedges`, `.children`) | `id` | `graph.hyperedges.children[9]` — O(1) |
+| Гіперребра (`graph.hyperedges`)                       | `id`   | `graph.hyperedges[9]` — O(1) |
 
 Пошук вузла **за іменем** (`files["hello.py"]`) — це лінійний перебір, O(n). Це свідомий компроміс:
 окремий індекс за іменем не зберігається, щоб економити пам'ять.
@@ -214,8 +235,8 @@ methods.extend(["method1", "method2"])
 imports = EdgeType("імпортує", directed=True)
 uses = EdgeType("використовує", directed=True)
 
-imports.append(files["hello.py"], files["myclass.py"])   # hello.py → myclass.py
-uses.append(files["hello.py"], methods["method1"])       # hello.py → method1
+imports.append(files["hello.py"].node_id, files["myclass.py"].node_id)   # hello.py → myclass.py
+uses.append(files["hello.py"].node_id, methods["method1"].node_id)       # hello.py → method1
 
 # Граф
 graph = FluoriteGraph(
@@ -230,17 +251,17 @@ print(graph)
 ```
 FluoriteGraph(
     nodes={
-        'файли': NodeType(name='файли', nodes={1: Node(name='hello.py'), 2: Node(name='myclass.py'), 3: Node(name='exec.py')}),
-        'класси': NodeType(name='класси', nodes={4: Node(name='MyClass')}),
-        'методи': NodeType(name='методи', nodes={5: Node(name='method1'), 6: Node(name='method2')})
+        'файли': NodeType(_name='файли', nodes={1: Node(name='hello.py'), 2: Node(name='myclass.py'), 3: Node(name='exec.py')}),
+        'класси': NodeType(_name='класси', nodes={4: Node(name='MyClass')}),
+        'методи': NodeType(_name='методи', nodes={5: Node(name='method1'), 6: Node(name='method2')})
     },
     edges={
-        'імпортує': EdgeType(name='імпортує', directed=True,
-                 edges={7: Edge(node_in=Node(name='hello.py'), node_out=Node(name='myclass.py'))}),
-        'використовує': EdgeType(name='використовує', directed=True,
-                 edges={8: Edge(node_in=Node(name='hello.py'), node_out=Node(name='method1'))})
+        'імпортує': EdgeType(_name='імпортує', directed=True,
+                 edges={7: Edge(node_in=1, node_out=2)}),
+        'використовує': EdgeType(_name='використовує', directed=True,
+                 edges={8: Edge(node_in=1, node_out=5)})
     },
-    hyperedges=HyperedgeType(hyperedges={}, children={})
+    hyperedges={}
 )
 ```
 
@@ -252,8 +273,6 @@ FluoriteGraph(
 
 Проєкт на ранній стадії, тому є кілька незавершених місць:
 
-- **`EdgeType.extend` не працює**: параметр названо `nedges`, а в тілі використовується `edges`;
-  також `Edge` має бути `self.Edge`. Виклик призведе до `NameError`.
 - **`EdgeType.append` не приймає `description`**, хоча поле `Edge.description` існує.
 - **`main.py` завершується з помилкою**: після `main()` блок «RESULT» не закоментований
   і виконується як код (`NameError: name 'Node' is not defined`).

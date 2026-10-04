@@ -1,6 +1,6 @@
 from rich import print
 
-from FluoriteGraph import FluoriteGraph, NodeType, EdgeType, HyperedgeType
+from FluoriteGraph import FluoriteGraph, NodeType, EdgeType, Hyperedge
 
 def case_hard():
     guys = ["Alice", "Bob", "Jeff", "Steve", "Donald", "Anton"]
@@ -76,21 +76,21 @@ def case_bank():
     cases = NodeType("розслідування")
     cases.append("Справа 17/26", "підозра на дроблення платежів")
 
-    olena = clients["Олена Шевчук"]
-    koval_1, koval_2 = clients["Олександр Коваль"]  # тезки -> список
-    ihor = clients["Ігор Мельник"]
-    romashka = clients["ТОВ Ромашка"]
+    olena = clients["Олена Шевчук"].node_id
+    koval_1, koval_2 = (node.node_id for node in clients["Олександр Коваль"])  # тезки -> список
+    ihor = clients["Ігор Мельник"].node_id
+    romashka = clients["ТОВ Ромашка"].node_id
 
     # --- ребра ---
     owns = EdgeType("володіє", directed=True)
     owns.extend([
-        (olena, accounts["UA11 ...0001"]),
-        (olena, accounts["UA11 ...0002"]),
-        (koval_1, accounts["UA22 ...0003"]),
-        (koval_2, accounts["UA33 ...0004"]),
-        (ihor, accounts["UA44 ...0005"]),
-        (romashka, accounts["UA55 ...0006"]),
-        (romashka, accounts["UA55 ...0007"]),
+        (olena, accounts["UA11 ...0001"].node_id),
+        (olena, accounts["UA11 ...0002"].node_id),
+        (koval_1, accounts["UA22 ...0003"].node_id),
+        (koval_2, accounts["UA33 ...0004"].node_id),
+        (ihor, accounts["UA44 ...0005"].node_id),
+        (romashka, accounts["UA55 ...0006"].node_id),
+        (romashka, accounts["UA55 ...0007"].node_id),
     ])
 
     pays = EdgeType("платить", directed=True)      # рахунок -> транзакція
@@ -106,18 +106,19 @@ def case_bank():
         ("T-005", "UA33 ...0004", "UA55 ...0007", "Rozetka", ["Подарункова картка 5000"]),
         ("T-006", "UA44 ...0005", "UA55 ...0007", "Rozetka", ["Подарункова картка 5000"]),
     ]:
-        tx = transactions[tx]
-        pays.append(accounts[payer], tx)
-        receives.append(tx, accounts[payee])
-        at.append(tx, shops[shop])
+        tx = transactions[tx].node_id
+        pays.append(accounts[payer].node_id, tx)
+        receives.append(tx, accounts[payee].node_id)
+        at.append(tx, shops[shop].node_id)
         for item in items:
-            contains.append(tx, goods[item])
+            contains.append(tx, goods[item].node_id)
 
     sells = EdgeType("продає", directed=True)
     for shop in ("АТБ №112", "АТБ №487"):
-        sells.extend([(shops[shop], goods["Хліб"]), (shops[shop], goods["Молоко"])])
-    sells.extend([(shops["Rozetka"], goods["iPhone 15"]),
-                  (shops["Rozetka"], goods["Подарункова картка 5000"])])
+        sells.extend([(shops[shop].node_id, goods["Хліб"].node_id),
+                      (shops[shop].node_id, goods["Молоко"].node_id)])
+    sells.extend([(shops["Rozetka"].node_id, goods["iPhone 15"].node_id),
+                  (shops["Rozetka"].node_id, goods["Подарункова картка 5000"].node_id)])
 
     related = EdgeType("пов'язані")  # ненапрямлене: родичі, спільна адреса тощо
     related.append(koval_2, ihor)
@@ -125,27 +126,27 @@ def case_bank():
     # належність до мережі - предметний факт, тому ребро
     in_chain = EdgeType("входить у мережу", directed=True)  # магазин -> мережа
     in_chain.extend([
-        (shops["АТБ №112"], chains["АТБ-Маркет"]),
-        (shops["АТБ №487"], chains["АТБ-Маркет"]),
+        (shops["АТБ №112"].node_id, chains["АТБ-Маркет"].node_id),
+        (shops["АТБ №487"].node_id, chains["АТБ-Маркет"].node_id),
     ])
 
     part_of = EdgeType("частина схеми", directed=True)  # транзакція -> схема
     part_of.extend([
-        (transactions[tx], schemes["Дроблення 3 x 5000"]) for tx in ("T-004", "T-005", "T-006")
+        (transactions[tx].node_id, schemes["Дроблення 3 x 5000"].node_id) for tx in ("T-004", "T-005", "T-006")
     ])
 
     organized = EdgeType("організував", directed=True)  # клієнт -> схема
-    organized.append(koval_2, schemes["Дроблення 3 x 5000"])
+    organized.append(koval_2, schemes["Дроблення 3 x 5000"].node_id)
 
     # ролі у справі - окремі типи ребер
     suspect = EdgeType("підозрюваний", directed=True)  # клієнт -> справа
-    suspect.extend([(koval_2, cases["Справа 17/26"]), (ihor, cases["Справа 17/26"])])
+    suspect.extend([(koval_2, cases["Справа 17/26"].node_id), (ihor, cases["Справа 17/26"].node_id)])
 
     witness = EdgeType("свідок", directed=True)  # клієнт -> справа
-    witness.append(romashka, cases["Справа 17/26"])
+    witness.append(romashka, cases["Справа 17/26"].node_id)
 
     concerns = EdgeType("стосується", directed=True)  # справа -> схема
-    concerns.append(cases["Справа 17/26"], schemes["Дроблення 3 x 5000"])
+    concerns.append(cases["Справа 17/26"].node_id, schemes["Дроблення 3 x 5000"].node_id)
 
     graph = FluoriteGraph(
         nodes=[clients, accounts, shops, goods, transactions, chains, schemes, cases],
@@ -155,48 +156,47 @@ def case_bank():
 
     # --- гіперребра ---
     # лише службові позначки без власних даних предметної області
-    monitoring = HyperedgeType.Hyperedge("під моніторингом", "фінмоніторинг")
-    duplicates = HyperedgeType.Hyperedge("можливі дублі", "знайдено алгоритмом")
-    splitting = HyperedgeType.Hyperedge("можливе дроблення", "знайдено алгоритмом")
-    anomalies = HyperedgeType.Hyperedge("аномалії")
-    workset = HyperedgeType.Hyperedge("вибірка аналітика", "2026-09-30")
+    # гіперребра створюються як типи вершин і ребер, а потім додаються в граф
+    monitoring = Hyperedge("під моніторингом", "фінмоніторинг")
+    duplicates = Hyperedge("можливі дублі", "знайдено алгоритмом")
+    splitting = Hyperedge("можливе дроблення", "знайдено алгоритмом")
+    anomalies = Hyperedge("аномалії")
+    workset = Hyperedge("вибірка аналітика", "2026-09-30")
 
-    for hyperedge in (monitoring, duplicates, splitting, anomalies, workset):
-        graph.hyperadd(hyperedge)
+    monitoring.extend([koval_2, ihor, accounts["UA33 ...0004"].node_id, accounts["UA44 ...0005"].node_id])
+    duplicates.extend(transactions[tx].node_id for tx in ("T-001", "T-002"))
+    splitting.extend(transactions[tx].node_id for tx in ("T-004", "T-005", "T-006"))
 
-    graph.hyperedges.add(monitoring.hyperedge_id, koval_2.node_id)
-    graph.hyperedges.add(monitoring.hyperedge_id, ihor.node_id)
-    graph.hyperedges.add(monitoring.hyperedge_id, accounts["UA33 ...0004"].node_id)
-    graph.hyperedges.add(monitoring.hyperedge_id, accounts["UA44 ...0005"].node_id)
-
-    graph.hyperedges.add(duplicates.hyperedge_id, transactions["T-001"].node_id)
-    graph.hyperedges.add(duplicates.hyperedge_id, transactions["T-002"].node_id)
-
-    graph.hyperedges.add(splitting.hyperedge_id, transactions["T-004"].node_id)
-    graph.hyperedges.add(splitting.hyperedge_id, transactions["T-005"].node_id)
-    graph.hyperedges.add(splitting.hyperedge_id, transactions["T-006"].node_id)
+    # до hyperadd у гіперребра немає owner, тож вкладеність перевіряється при додаванні в граф
+    graph.hyperextend([monitoring, duplicates, splitting, anomalies, workset])
 
     # вкладені гіперребра
-    graph.hyperedges.add(anomalies.hyperedge_id, duplicates.hyperedge_id)
-    graph.hyperedges.add(anomalies.hyperedge_id, splitting.hyperedge_id)
+    anomalies.append(duplicates.hyperedge_id)
+    anomalies.append(splitting.hyperedge_id)
 
-    # вибірка: вкладене гіперребро, вершини різних типів, і тег разом зі своїм членом
-    graph.hyperedges.add(workset.hyperedge_id, anomalies.hyperedge_id)
-    graph.hyperedges.add(workset.hyperedge_id, monitoring.hyperedge_id)
-    graph.hyperedges.add(workset.hyperedge_id, cases["Справа 17/26"].node_id)
-    graph.hyperedges.add(workset.hyperedge_id, accounts["UA55 ...0007"].node_id)
+    # вибірка: вкладені гіперребра, вершини різних типів, і тег разом зі своїм членом
+    workset.append(anomalies.hyperedge_id)
+    workset.append(monitoring.hyperedge_id)
+    workset.append(cases["Справа 17/26"].node_id)
+    workset.append(accounts["UA55 ...0007"].node_id)
 
     # ромб: T-005 у вибірці і напряму, і через anomalies -> splitting - дозволено
-    graph.hyperedges.add(workset.hyperedge_id, transactions["T-005"].node_id)
+    workset.append(transactions["T-005"].node_id)
 
     # вершина в кількох гіперребрах: T-004 і в splitting, і в monitoring
-    graph.hyperedges.add(monitoring.hyperedge_id, transactions["T-004"].node_id)
+    monitoring.append(transactions["T-004"].node_id)
 
     # цикл: аномалії не можуть містити вибірку, яка вже містить аномалії
     try:
-        graph.hyperedges.add(anomalies.hyperedge_id, workset.hyperedge_id)
+        anomalies.append(workset.hyperedge_id)
     except ValueError as error:
         print(error)
+
+    # прямі зміни множини обходять перевірку - це на відповідальності користувача
+    # splitting.children.add(workset.hyperedge_id)  # тихо створить цикл
+
+    # гіперребра - субграфи, тож операції над ними - звичайні операції над множинами
+    print(monitoring.children & splitting.children)  # під моніторингом і водночас у дробленні
 
     print(graph)
 
@@ -218,8 +218,8 @@ def main():
     imports = EdgeType("імпортує", directed=True)
     uses = EdgeType("використовує", directed=True)
 
-    imports.append(files["hello.py"], files["myclass.py"])
-    uses.append(files["hello.py"], methods["method1"])
+    imports.append(files["hello.py"].node_id, files["myclass.py"].node_id)
+    uses.append(files["hello.py"].node_id, methods["method1"].node_id)
 
     graph = FluoriteGraph(
         nodes=[files, classes, methods], 

@@ -1,17 +1,21 @@
 version = 1
 revision = 3
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 
 [[package]]
 name = "fluoritegraph"
 version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
+source = { editable = "." }
+
+[package.dev-dependencies]
+dev = [
     { name = "rich" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "rich", specifier = ">=15.0.0" }]
+
+[package.metadata.requires-dev]
+dev = [{ name = "rich", specifier = ">=15.0.0" }]
 
 [[package]]
 name = "markdown-it-py"

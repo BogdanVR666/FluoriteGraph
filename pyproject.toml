@@ -1,9 +1,33 @@
 [project]
 name = "fluoritegraph"
 version = "0.1.0"
-description = "Graph for Fluorite editor"
+description = "Typed knowledge graph with hyperedges for the Fluorite editor"
 readme = "README.md"
-requires-python = ">=3.13"
-dependencies = [
-    "rich>=15.0.0",
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "BohdanVR666", email = "bogdanvr777@gmail.com" }]
+requires-python = ">=3.10"
+dependencies = []
+keywords = ["graph", "knowledge-graph", "hypergraph", "fluorite"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Software Development :: Libraries",
+    "Typing :: Typed",
 ]
+
+[project.urls]
+Homepage = "https://github.com/BogdanVR666/FluoriteGraph"
+Repository = "https://github.com/BogdanVR666/FluoriteGraph"
+Issues = "https://github.com/BogdanVR666/FluoriteGraph/issues"
+
+[dependency-groups]
+dev = ["rich>=15.0.0"]
+
+[build-system]
+requires = ["uv_build>=0.11.19,<0.12"]
+build-backend = "uv_build"

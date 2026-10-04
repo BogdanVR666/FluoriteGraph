@@ -38,27 +38,47 @@ FluoriteGraph
 
 ## Структура проєкту
 
-| Файл               | Призначення                                                        |
-|--------------------|--------------------------------------------------------------------|
-| `FluoriteGraph.py` | Уся модель даних: `NodeType`, `EdgeType`, `Hyperedge`, `FluoriteGraph` |
-| `main.py`          | Демонстраційний приклад використання                               |
-| `pyproject.toml`   | Метадані проєкту та залежності                                     |
-| `uv.lock`          | Зафіксовані версії залежностей (для [uv](https://docs.astral.sh/uv/)) |
+| Файл                            | Призначення                                                          |
+|---------------------------------|----------------------------------------------------------------------|
+| `src/fluoritegraph/graph.py`    | Уся модель даних: `NodeType`, `EdgeType`, `Hyperedge`, `FluoriteGraph` |
+| `src/fluoritegraph/__init__.py` | Публічний API пакета                                                 |
+| `examples/main.py`              | Демонстраційний приклад використання                                 |
+| `pyproject.toml`                | Метадані пакета та залежності                                        |
+| `uv.lock`                       | Зафіксовані версії залежностей (для [uv](https://docs.astral.sh/uv/)) |
 
 ---
 
-## Встановлення та запуск
+## Встановлення
 
-Потрібен **Python 3.13+**. Проєкт керується через `uv`:
+Потрібен **Python 3.10+**. Пакет не має залежностей:
 
 ```bash
-uv sync             # створити .venv і встановити залежності
-uv run python main.py
+pip install fluoritegraph
 ```
 
-Залежності:
+```python
+from fluoritegraph import FluoriteGraph, NodeType, EdgeType, Hyperedge
+```
 
-- [`rich`](https://github.com/Textualize/rich) — гарний вивід структур у терміналі (використовується в `main.py`).
+### Розробка
+
+Проєкт керується через `uv`:
+
+```bash
+uv sync                          # створити .venv, встановити пакет і dev-залежності
+uv run python examples/main.py
+```
+
+Dev-залежності:
+
+- [`rich`](https://github.com/Textualize/rich) — гарний вивід структур у терміналі (використовується в `examples/main.py`).
+
+### Публікація на PyPI
+
+```bash
+uv build                         # зібрати dist/*.whl і dist/*.tar.gz
+uv publish                       # потрібен токен PyPI: UV_PUBLISH_TOKEN=pypi-...
+```
 
 ---
 
@@ -215,11 +235,11 @@ FluoriteGraph(
 
 ## Приклад
 
-Приклад із `main.py` моделює невеликий Python-проєкт:
+Приклад із `examples/main.py` моделює невеликий Python-проєкт:
 
 ```python
 from rich import print
-from FluoriteGraph import FluoriteGraph, NodeType, EdgeType
+from fluoritegraph import FluoriteGraph, NodeType, EdgeType
 
 # Типи вузлів
 files = NodeType("файли")
@@ -274,9 +294,9 @@ FluoriteGraph(
 Проєкт на ранній стадії, тому є кілька незавершених місць:
 
 - **`EdgeType.append` не приймає `description`**, хоча поле `Edge.description` існує.
-- **`main.py` завершується з помилкою**: після `main()` блок «RESULT» не закоментований
+- **`examples/main.py` завершується з помилкою**: після `main()` блок «RESULT» не закоментований
   і виконується як код (`NameError: name 'Node' is not defined`).
-- **`case_hard()` у `main.py`** використовує методи, яких ще немає у `FluoriteGraph`:
+- **`case_hard()` у `examples/main.py`** використовує методи, яких ще немає у `FluoriteGraph`:
   `append`, `connect(..., description=..., directed=...)` і `__getitem__`. Це чернетка майбутнього API.
 - **`NodeType.__getitem__`** повертає або вузол, або список — викликаючому коду доводиться перевіряти тип результату.
   (Лінійний перебір тут навмисний — див. `FluoriteGraph` вище.)

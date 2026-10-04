@@ -1,6 +1,6 @@
 from rich import print
 
-from FluoriteGraph import FluoriteGraph, NodeType, EdgeType, Hyperedge
+from fluoritegraph import FluoriteGraph, NodeType, EdgeType, Hyperedge
 
 def case_hard():
     guys = ["Alice", "Bob", "Jeff", "Steve", "Donald", "Anton"]

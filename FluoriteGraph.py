@@ -90,13 +90,10 @@ class EdgeType:
 
 @dataclass(slots=True)
 class Hyperedge:
-    # гіперребро - вирізка з графа: множина id вершин та інших гіперребер.
-    # вкладеність гіперребер має лишатися DAG
     name: str
     description: str | None = None
     children: set[int] = field(default_factory=set)
     hyperedge_id: int = field(default_factory=lambda: next(_counter))
-    # зворотне посилання на граф для перевірки на DAG, виставляє FluoriteGraph.hyperadd
     owner: "FluoriteGraph | None" = field(default=None, compare=False, repr=False)
 
     def append(self, child_id: int) -> None:
@@ -118,18 +115,15 @@ class FluoriteGraph:
     hyperedges: dict[int, Hyperedge] = field(default_factory=dict)
 
     def __post_init__(self):
-        # дозволяє передавати списки: FluoriteGraph(nodes=[files, classes])
         if not isinstance(self.nodes, dict):
             self.nodes = {node_type.name: node_type for node_type in self.nodes}
         if not isinstance(self.edges, dict):
             self.edges = {edge_type.name: edge_type for edge_type in self.edges}
-        # гіперребра завжди проходять через hyperadd: owner і перевірка на DAG
         hyperedges = self.hyperedges.values() if isinstance(self.hyperedges, dict) else self.hyperedges
         self.hyperedges = {}
         self.hyperextend(hyperedges)
 
     def hyperadd(self, hyperedge: Hyperedge) -> None:
-        # діти могли з'явитися ще до додавання в граф, без перевірки
         for child_id in hyperedge.children:
             if child_id == hyperedge.hyperedge_id or self._reaches(child_id, hyperedge.hyperedge_id):
                 raise ValueError(f"Adding {hyperedge.hyperedge_id} creates a cycle through {child_id}")
@@ -141,7 +135,6 @@ class FluoriteGraph:
             self.hyperadd(hyperedge)
 
     def _reaches(self, start: int, target: int) -> bool:
-        # вершини - листки, тому обходимо лише гіперребра
         stack, seen = [start], set()
         while stack:
             current = stack.pop()
